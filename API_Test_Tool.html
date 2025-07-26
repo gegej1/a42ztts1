@@ -1,0 +1,520 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>a42z TTS API测试工具</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+        }
+        .api-config {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 30px;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #555;
+        }
+        input, textarea, select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 16px;
+            box-sizing: border-box;
+            transition: border-color 0.3s;
+        }
+        input:focus, textarea:focus, select:focus {
+            border-color: #667eea;
+            outline: none;
+        }
+        textarea {
+            height: 120px;
+            resize: vertical;
+        }
+        .button-group {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-bottom: 20px;
+        }
+        button {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.3s;
+            flex: 1;
+            min-width: 120px;
+        }
+        button:hover {
+            background: #5a67d8;
+            transform: translateY(-2px);
+        }
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+        .status {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 8px;
+            font-weight: 500;
+        }
+        .status.loading {
+            background: #e3f2fd;
+            color: #1976d2;
+            border-left: 4px solid #2196f3;
+        }
+        .status.success {
+            background: #e8f5e8;
+            color: #2e7d32;
+            border-left: 4px solid #4caf50;
+        }
+        .status.error {
+            background: #ffebee;
+            color: #c62828;
+            border-left: 4px solid #f44336;
+        }
+        .result-panel {
+            margin-top: 20px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 10px;
+            border: 1px solid #e9ecef;
+        }
+        .audio-player {
+            margin-top: 15px;
+        }
+        .audio-player audio {
+            width: 100%;
+            margin-top: 10px;
+        }
+        .speaker-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        .speaker-card {
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border: 2px solid #e9ecef;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .speaker-card:hover {
+            border-color: #667eea;
+            background: #e3f2fd;
+        }
+        .speaker-card.selected {
+            border-color: #667eea;
+            background: #e3f2fd;
+        }
+        .speaker-card h3 {
+            margin: 0 0 8px 0;
+            color: #333;
+        }
+        .speaker-card p {
+            margin: 0;
+            color: #666;
+            font-size: 14px;
+        }
+        .test-examples {
+            background: #fff3cd;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border-left: 4px solid #ffc107;
+        }
+        .example-text {
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 5px 0;
+            cursor: pointer;
+            border: 1px solid #dee2e6;
+            transition: background 0.3s;
+        }
+        .example-text:hover {
+            background: #e9ecef;
+        }
+        .health-status {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        .health-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #ccc;
+        }
+        .health-indicator.healthy {
+            background: #4caf50;
+        }
+        .health-indicator.unhealthy {
+            background: #f44336;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎤 a42z TTS API测试工具</h1>
+        
+        <!-- API配置 -->
+        <div class="api-config">
+            <h3>API配置</h3>
+            <div class="form-group">
+                <label for="apiUrl">API地址:</label>
+                <input type="text" id="apiUrl" placeholder="https://your-domain.zeabur.app" value="">
+            </div>
+            <div class="health-status">
+                <div class="health-indicator" id="healthIndicator"></div>
+                <span id="healthStatus">未检测</span>
+                <button onclick="checkHealth()" style="margin-left: auto; flex: none; min-width: auto; padding: 8px 16px;">检查状态</button>
+            </div>
+        </div>
+
+        <!-- 语音角色选择 -->
+        <div class="speaker-grid">
+            <div class="speaker-card selected" data-speaker="sam_altman">
+                <h3>Sam Altman</h3>
+                <p>英文语音 • OpenAI CEO</p>
+            </div>
+            <div class="speaker-card" data-speaker="feifeili">
+                <h3>李飞飞</h3>
+                <p>中文语音 • 斯坦福教授</p>
+            </div>
+            <div class="speaker-card" data-speaker="wuenda">
+                <h3>吴恩达</h3>
+                <p>中文语音 • AI专家</p>
+            </div>
+            <div class="speaker-card" data-speaker="paul_graham">
+                <h3>Paul Graham</h3>
+                <p>英文语音 • Y Combinator</p>
+            </div>
+        </div>
+
+        <!-- 测试示例 -->
+        <div class="test-examples">
+            <h4>📝 快速测试示例（点击使用）:</h4>
+            <div class="example-text" data-text="Hello, this is a test of the TTS voice cloning system." data-speaker="sam_altman">
+                🇺🇸 英文测试 - Sam Altman
+            </div>
+            <div class="example-text" data-text="你好，这是TTS语音克隆系统的测试。" data-speaker="feifeili">
+                🇨🇳 中文测试 - 李飞飞
+            </div>
+            <div class="example-text" data-text="大家好，我是吴恩达，欢迎来到人工智能的世界。" data-speaker="wuenda">
+                🇨🇳 中文测试 - 吴恩达
+            </div>
+            <div class="example-text" data-text="Welcome to Y Combinator. We help startups get started." data-speaker="paul_graham">
+                🇺🇸 英文测试 - Paul Graham
+            </div>
+        </div>
+
+        <!-- 文本输入 -->
+        <div class="form-group">
+            <label for="text">输入文本内容:</label>
+            <textarea id="text" placeholder="请输入要转换为语音的文本内容...">Hello, this is a test of the TTS voice cloning system.</textarea>
+        </div>
+        
+        <!-- 控制按钮 -->
+        <div class="button-group">
+            <button onclick="generateSpeech()" id="generateBtn">🎵 生成语音</button>
+            <button onclick="stopAudio()" id="stopBtn" disabled>⏹️ 停止播放</button>
+            <button onclick="testAllSpeakers()" id="testAllBtn">🧪 测试所有角色</button>
+        </div>
+        
+        <!-- 状态显示 -->
+        <div id="status" class="status" style="display: none;"></div>
+        
+        <!-- 结果面板 -->
+        <div id="resultPanel" class="result-panel" style="display: none;">
+            <h4>🎵 生成结果</h4>
+            <div id="resultContent"></div>
+        </div>
+    </div>
+
+    <script>
+        let currentAudio = null;
+        let selectedSpeaker = 'sam_altman';
+
+        // 初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            // 设置默认API地址
+            const apiUrlInput = document.getElementById('apiUrl');
+            if (!apiUrlInput.value) {
+                apiUrlInput.value = 'https://your-domain.zeabur.app';
+            }
+
+            // 语音角色选择
+            document.querySelectorAll('.speaker-card').forEach(card => {
+                card.addEventListener('click', function() {
+                    document.querySelectorAll('.speaker-card').forEach(c => c.classList.remove('selected'));
+                    this.classList.add('selected');
+                    selectedSpeaker = this.dataset.speaker;
+                });
+            });
+
+            // 示例文本点击
+            document.querySelectorAll('.example-text').forEach(example => {
+                example.addEventListener('click', function() {
+                    document.getElementById('text').value = this.dataset.text;
+                    selectedSpeaker = this.dataset.speaker;
+                    
+                    // 更新选中的语音角色
+                    document.querySelectorAll('.speaker-card').forEach(c => c.classList.remove('selected'));
+                    document.querySelector(`[data-speaker="${selectedSpeaker}"]`).classList.add('selected');
+                });
+            });
+        });
+
+        // 显示状态
+        function showStatus(message, type) {
+            const statusEl = document.getElementById('status');
+            statusEl.textContent = message;
+            statusEl.className = `status ${type}`;
+            statusEl.style.display = 'block';
+        }
+
+        // 检查健康状态
+        async function checkHealth() {
+            const apiUrl = document.getElementById('apiUrl').value.trim();
+            if (!apiUrl) {
+                showStatus('请输入API地址', 'error');
+                return;
+            }
+
+            const healthIndicator = document.getElementById('healthIndicator');
+            const healthStatus = document.getElementById('healthStatus');
+            
+            try {
+                healthStatus.textContent = '检测中...';
+                const response = await fetch(`${apiUrl}/health`);
+                const data = await response.json();
+                
+                if (data.status === 'ok') {
+                    healthIndicator.className = 'health-indicator healthy';
+                    healthStatus.textContent = `服务正常 (v${data.version})`;
+                    showStatus('✅ API服务连接正常', 'success');
+                } else {
+                    healthIndicator.className = 'health-indicator unhealthy';
+                    healthStatus.textContent = '服务异常';
+                    showStatus('⚠️ API服务状态异常', 'error');
+                }
+            } catch (error) {
+                healthIndicator.className = 'health-indicator unhealthy';
+                healthStatus.textContent = '连接失败';
+                showStatus('❌ 无法连接到API服务: ' + error.message, 'error');
+            }
+        }
+
+        // 生成语音
+        async function generateSpeech() {
+            const apiUrl = document.getElementById('apiUrl').value.trim();
+            const text = document.getElementById('text').value.trim();
+            
+            if (!apiUrl) {
+                showStatus('请输入API地址', 'error');
+                return;
+            }
+            
+            if (!text) {
+                showStatus('请输入文本内容', 'error');
+                return;
+            }
+            
+            const generateBtn = document.getElementById('generateBtn');
+            const stopBtn = document.getElementById('stopBtn');
+            
+            generateBtn.disabled = true;
+            showStatus('正在生成语音，请稍候...', 'loading');
+            
+            try {
+                const response = await fetch(`${apiUrl}/api/tts`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        text: text,
+                        speaker: selectedSpeaker
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success && result.audioUrl) {
+                    showStatus('✅ 语音生成成功，开始播放', 'success');
+                    
+                    // 停止当前播放
+                    stopAudio();
+                    
+                    // 创建新的音频对象
+                    currentAudio = new Audio(result.audioUrl);
+                    
+                    // 添加事件监听
+                    currentAudio.addEventListener('loadstart', () => {
+                        showStatus('正在加载音频...', 'loading');
+                    });
+                    
+                    currentAudio.addEventListener('canplay', () => {
+                        showStatus('音频加载完成，开始播放', 'success');
+                        stopBtn.disabled = false;
+                    });
+                    
+                    currentAudio.addEventListener('ended', () => {
+                        showStatus('播放完成', 'success');
+                        stopBtn.disabled = true;
+                        generateBtn.disabled = false;
+                        currentAudio = null;
+                    });
+                    
+                    currentAudio.addEventListener('error', (e) => {
+                        showStatus('音频播放失败', 'error');
+                        stopBtn.disabled = true;
+                        generateBtn.disabled = false;
+                    });
+                    
+                    // 播放音频
+                    await currentAudio.play();
+                    
+                    // 显示结果
+                    displayResult(result);
+                    
+                } else {
+                    showStatus('❌ 语音生成失败: ' + (result.error || '未知错误'), 'error');
+                }
+                
+            } catch (error) {
+                showStatus('❌ 请求失败: ' + error.message, 'error');
+            } finally {
+                generateBtn.disabled = false;
+            }
+        }
+
+        // 显示结果
+        function displayResult(result) {
+            const resultPanel = document.getElementById('resultPanel');
+            const resultContent = document.getElementById('resultContent');
+            
+            resultContent.innerHTML = `
+                <p><strong>语音角色:</strong> ${result.speaker}</p>
+                <p><strong>文本预览:</strong> ${result.textPreview}</p>
+                <p><strong>Voice ID:</strong> ${result.voiceId || 'N/A'}</p>
+                <p><strong>生成时间:</strong> ${result.timestamp || new Date().toISOString()}</p>
+                <div class="audio-player">
+                    <strong>音频播放器:</strong>
+                    <audio controls style="width: 100%; margin-top: 10px;">
+                        <source src="${result.audioUrl}" type="audio/mpeg">
+                        您的浏览器不支持音频播放。
+                    </audio>
+                </div>
+            `;
+            
+            resultPanel.style.display = 'block';
+        }
+
+        // 停止播放
+        function stopAudio() {
+            if (currentAudio) {
+                currentAudio.pause();
+                currentAudio.currentTime = 0;
+                currentAudio = null;
+            }
+            document.getElementById('stopBtn').disabled = true;
+            document.getElementById('generateBtn').disabled = false;
+        }
+
+        // 测试所有语音角色
+        async function testAllSpeakers() {
+            const speakers = ['sam_altman', 'feifeili', 'wuenda', 'paul_graham'];
+            const testTexts = {
+                'sam_altman': 'Hello, I am Sam Altman.',
+                'feifeili': '你好，我是李飞飞。',
+                'wuenda': '大家好，我是吴恩达。',
+                'paul_graham': 'Welcome to Y Combinator.'
+            };
+            
+            const testAllBtn = document.getElementById('testAllBtn');
+            testAllBtn.disabled = true;
+            
+            for (let i = 0; i < speakers.length; i++) {
+                const speaker = speakers[i];
+                const text = testTexts[speaker];
+                
+                showStatus(`测试 ${speaker} (${i + 1}/${speakers.length})`, 'loading');
+                
+                // 更新UI
+                selectedSpeaker = speaker;
+                document.getElementById('text').value = text;
+                document.querySelectorAll('.speaker-card').forEach(c => c.classList.remove('selected'));
+                document.querySelector(`[data-speaker="${speaker}"]`).classList.add('selected');
+                
+                // 生成并播放
+                await generateSpeech();
+                
+                // 等待播放完成
+                if (currentAudio) {
+                    await new Promise(resolve => {
+                        const checkEnd = () => {
+                            if (!currentAudio || currentAudio.ended) {
+                                resolve();
+                            } else {
+                                setTimeout(checkEnd, 100);
+                            }
+                        };
+                        checkEnd();
+                    });
+                }
+                
+                // 间隔1秒
+                if (i < speakers.length - 1) {
+                    await new Promise(resolve => setTimeout(resolve, 1000));
+                }
+            }
+            
+            testAllBtn.disabled = false;
+            showStatus('✅ 所有语音角色测试完成', 'success');
+        }
+
+        // 页面加载时自动检查健康状态
+        window.addEventListener('load', () => {
+            setTimeout(checkHealth, 1000);
+        });
+    </script>
+</body>
+</html>

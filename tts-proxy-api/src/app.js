@@ -53,7 +53,10 @@ app.get('/health', (req, res) => {
 })
 
 // API路由
+const commentsRoutes = require('./routes/comments')
+
 app.use('/api/tts', ttsRoutes)
+app.use('/api/comments', commentsRoutes)
 
 // 根路径
 app.get('/', (req, res) => {
@@ -63,7 +66,8 @@ app.get('/', (req, res) => {
     version: require('../package.json').version,
     endpoints: {
       health: '/health',
-      tts: '/api/tts'
+      tts: '/api/tts',
+      comments: '/api/comments'
     },
     documentation: 'https://github.com/your-username/tts-proxy-api'
   })

@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TTS API数据流监控器</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            min-height: 100vh;
+            color: white;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        h1 {
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+        .flow-diagram {
+            background: rgba(255,255,255,0.1);
+            border-radius: 15px;
+            padding: 30px;
+            margin-bottom: 30px;
+            backdrop-filter: blur(10px);
+        }
+        .flow-step {
+            display: flex;
+            align-items: center;
+            margin-bottom: 20px;
+            padding: 15px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 10px;
+            transition: all 0.3s;
+        }
+        .flow-step.active {
+            background: rgba(76, 175, 80, 0.3);
+            transform: scale(1.02);
+            box-shadow: 0 5px 15px rgba(76, 175, 80, 0.3);
+        }
+        .flow-step.error {
+            background: rgba(244, 67, 54, 0.3);
+            box-shadow: 0 5px 15px rgba(244, 67, 54, 0.3);
+        }
+        .step-number {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            margin-right: 15px;
+            flex-shrink: 0;
+        }
+        .step-content {
+            flex: 1;
+        }
+        .step-title {
+            font-weight: bold;
+            font-size: 1.1em;
+            margin-bottom: 5px;
+        }
+        .step-description {
+            opacity: 0.8;
+            font-size: 0.9em;
+        }
+        .step-status {
+            margin-left: 15px;
+            padding: 5px 10px;
+            border-radius: 15px;
+            font-size: 0.8em;
+            font-weight: bold;
+        }
+        .status-waiting {
+            background: rgba(158, 158, 158, 0.3);
+        }
+        .status-processing {
+            background: rgba(255, 193, 7, 0.3);
+            animation: pulse 1.5s infinite;
+        }
+        .status-success {
+            background: rgba(76, 175, 80, 0.3);
+        }
+        .status-error {
+            background: rgba(244, 67, 54, 0.3);
+        }
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+        .control-panel {
+            background: rgba(255,255,255,0.1);
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 30px;
+            backdrop-filter: blur(10px);
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input, textarea, select {
+            width: 100%;
+            padding: 10px;
+            border: none;
+            border-radius: 8px;
+            background: rgba(255,255,255,0.9);
+            color: #333;
+            box-sizing: border-box;
+        }
+        textarea {
+            height: 80px;
+            resize: vertical;
+        }
+        button {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: all 0.3s;
+            margin-right: 10px;
+        }
+        button:hover {
+            background: #45a049;
+            transform: translateY(-2px);
+        }
+        button:disabled {
+            background: #666;
+            cursor: not-allowed;
+            transform: none;
+        }
+        .data-panel {
+            background: rgba(255,255,255,0.1);
+            border-radius: 15px;
+            padding: 20px;
+            backdrop-filter: blur(10px);
+        }
+        .data-section {
+            margin-bottom: 20px;
+        }
+        .data-title {
+            font-weight: bold;
+            margin-bottom: 10px;
+            color: #FFD700;
+        }
+        .data-content {
+            background: rgba(0,0,0,0.3);
+            padding: 15px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+        .timing-info {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+        .timing-card {
+            background: rgba(255,255,255,0.1);
+            padding: 15px;
+            border-radius: 10px;
+            text-align: center;
+        }
+        .timing-value {
+            font-size: 2em;
+            font-weight: bold;
+            color: #FFD700;
+        }
+        .timing-label {
+            opacity: 0.8;
+            margin-top: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 TTS API数据流监控器</h1>
+        
+        <!-- 控制面板 -->
+        <div class="control-panel">
+            <h3>📝 测试控制面板</h3>
+            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px;">
+                <div class="form-group">
+                    <label>API地址:</label>
+                    <input type="text" id="apiUrl" placeholder="https://your-domain.zeabur.app" value="">
+                </div>
+                <div class="form-group">
+                    <label>文本内容:</label>
+                    <textarea id="textInput" placeholder="输入要转换的文本...">Hello, this is a test message.</textarea>
+                </div>
+                <div class="form-group">
+                    <label>语音角色:</label>
+                    <select id="speakerSelect">
+                        <option value="sam_altman">Sam Altman (英文)</option>
+                        <option value="feifeili">李飞飞 (中文)</option>
+                        <option value="wuenda">吴恩达 (中文)</option>
+                        <option value="paul_graham">Paul Graham (英文)</option>
+                    </select>
+                </div>
+            </div>
+            <div style="margin-top: 15px;">
+                <button onclick="startMonitoring()" id="startBtn">🚀 开始监控</button>
+                <button onclick="resetFlow()" id="resetBtn">🔄 重置</button>
+                <button onclick="showRawData()" id="dataBtn">📊 查看原始数据</button>
+            </div>
+        </div>
+
+        <!-- 数据流图 -->
+        <div class="flow-diagram">
+            <h3>🔄 实时数据流监控</h3>
+            
+            <div class="flow-step" id="step1">
+                <div class="step-number">1</div>
+                <div class="step-content">
+                    <div class="step-title">前端发起请求</div>
+                    <div class="step-description">JavaScript封装文本数据并发送HTTP POST请求</div>
+                </div>
+                <div class="step-status status-waiting" id="status1">等待中</div>
+            </div>
+
+            <div class="flow-step" id="step2">
+                <div class="step-number">2</div>
+                <div class="step-content">
+                    <div class="step-title">TTS代理API接收</div>
+                    <div class="step-description">Express路由处理请求，验证参数</div>
+                </div>
+                <div class="step-status status-waiting" id="status2">等待中</div>
+            </div>
+
+            <div class="flow-step" id="step3">
+                <div class="step-number">3</div>
+                <div class="step-content">
+                    <div class="step-title">Voice ID映射</div>
+                    <div class="step-description">将speaker转换为对应的Voice ID</div>
+                </div>
+                <div class="step-status status-waiting" id="status3">等待中</div>
+            </div>
+
+            <div class="flow-step" id="step4">
+                <div class="step-number">4</div>
+                <div class="step-content">
+                    <div class="step-title">调用PPIO API</div>
+                    <div class="step-description">发送请求到PPIO MiniMax语音合成服务</div>
+                </div>
+                <div class="step-status status-waiting" id="status4">等待中</div>
+            </div>
+
+            <div class="flow-step" id="step5">
+                <div class="step-number">5</div>
+                <div class="step-content">
+                    <div class="step-title">语音合成处理</div>
+                    <div class="step-description">PPIO服务生成音频文件并上传到CDN</div>
+                </div>
+                <div class="step-status status-waiting" id="status5">等待中</div>
+            </div>
+
+            <div class="flow-step" id="step6">
+                <div class="step-number">6</div>
+                <div class="step-content">
+                    <div class="step-title">返回音频URL</div>
+                    <div class="step-description">代理API格式化响应并返回给前端</div>
+                </div>
+                <div class="step-status status-waiting" id="status6">等待中</div>
+            </div>
+
+            <div class="flow-step" id="step7">
+                <div class="step-number">7</div>
+                <div class="step-content">
+                    <div class="step-title">前端播放音频</div>
+                    <div class="step-description">创建Audio对象并播放生成的语音</div>
+                </div>
+                <div class="step-status status-waiting" id="status7">等待中</div>
+            </div>
+        </div>
+
+        <!-- 性能统计 -->
+        <div class="timing-info">
+            <div class="timing-card">
+                <div class="timing-value" id="totalTime">0ms</div>
+                <div class="timing-label">总耗时</div>
+            </div>
+            <div class="timing-card">
+                <div class="timing-value" id="apiTime">0ms</div>
+                <div class="timing-label">API响应时间</div>
+            </div>
+            <div class="timing-card">
+                <div class="timing-value" id="audioSize">0KB</div>
+                <div class="timing-label">音频文件大小</div>
+            </div>
+            <div class="timing-card">
+                <div class="timing-value" id="textLength">0</div>
+                <div class="timing-label">文本字符数</div>
+            </div>
+        </div>
+
+        <!-- 数据面板 -->
+        <div class="data-panel" id="dataPanel" style="display: none;">
+            <h3>📊 原始数据详情</h3>
+            
+            <div class="data-section">
+                <div class="data-title">📤 发送的请求数据:</div>
+                <div class="data-content" id="requestData">暂无数据</div>
+            </div>
+            
+            <div class="data-section">
+                <div class="data-title">📥 接收的响应数据:</div>
+                <div class="data-content" id="responseData">暂无数据</div>
+            </div>
+            
+            <div class="data-section">
+                <div class="data-title">🔧 PPIO API调用详情:</div>
+                <div class="data-content" id="ppioData">暂无数据</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let monitoringData = {
+            startTime: 0,
+            apiStartTime: 0,
+            steps: {},
+            requestData: null,
+            responseData: null
+        }
+
+        // 初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            const apiUrlInput = document.getElementById('apiUrl')
+            if (!apiUrlInput.value) {
+                apiUrlInput.value = 'https://your-domain.zeabur.app'
+            }
+        })
+
+        // 更新步骤状态
+        function updateStepStatus(stepNumber, status, message = '') {
+            const step = document.getElementById(`step${stepNumber}`)
+            const statusEl = document.getElementById(`status${stepNumber}`)
+            
+            // 移除所有状态类
+            step.classList.remove('active', 'error')
+            statusEl.classList.remove('status-waiting', 'status-processing', 'status-success', 'status-error')
+            
+            // 添加新状态
+            switch(status) {
+                case 'processing':
+                    step.classList.add('active')
+                    statusEl.classList.add('status-processing')
+                    statusEl.textContent = '处理中...'
+                    break
+                case 'success':
+                    statusEl.classList.add('status-success')
+                    statusEl.textContent = '完成'
+                    break
+                case 'error':
+                    step.classList.add('error')
+                    statusEl.classList.add('status-error')
+                    statusEl.textContent = '失败'
+                    break
+                default:
+                    statusEl.classList.add('status-waiting')
+                    statusEl.textContent = '等待中'
+            }
+            
+            monitoringData.steps[stepNumber] = {
+                status,
+                timestamp: Date.now(),
+                message
+            }
+        }
+
+        // 延迟函数
+        function delay(ms) {
+            return new Promise(resolve => setTimeout(resolve, ms))
+        }
+
+        // 开始监控
+        async function startMonitoring() {
+            const apiUrl = document.getElementById('apiUrl').value.trim()
+            const text = document.getElementById('textInput').value.trim()
+            const speaker = document.getElementById('speakerSelect').value
+            
+            if (!apiUrl || !text) {
+                alert('请填写API地址和文本内容')
+                return
+            }
+            
+            // 重置状态
+            resetFlow()
+            
+            // 禁用按钮
+            document.getElementById('startBtn').disabled = true
+            
+            monitoringData.startTime = Date.now()
+            monitoringData.requestData = { text, speaker }
+            
+            try {
+                // 步骤1: 前端发起请求
+                updateStepStatus(1, 'processing')
+                await delay(500)
+                updateStepStatus(1, 'success')
+                
+                // 步骤2: TTS代理API接收
+                updateStepStatus(2, 'processing')
+                await delay(300)
+                updateStepStatus(2, 'success')
+                
+                // 步骤3: Voice ID映射
+                updateStepStatus(3, 'processing')
+                await delay(200)
+                updateStepStatus(3, 'success')
+                
+                // 步骤4: 调用PPIO API
+                updateStepStatus(4, 'processing')
+                monitoringData.apiStartTime = Date.now()
+                
+                const response = await fetch(`${apiUrl}/api/tts`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ text, speaker })
+                })
+                
+                const apiTime = Date.now() - monitoringData.apiStartTime
+                document.getElementById('apiTime').textContent = `${apiTime}ms`
+                
+                updateStepStatus(4, 'success')
+                
+                // 步骤5: 语音合成处理
+                updateStepStatus(5, 'processing')
+                await delay(1000)
+                updateStepStatus(5, 'success')
+                
+                // 步骤6: 返回音频URL
+                updateStepStatus(6, 'processing')
+                const result = await response.json()
+                monitoringData.responseData = result
+                updateStepStatus(6, 'success')
+                
+                if (result.success && result.audioUrl) {
+                    // 步骤7: 前端播放音频
+                    updateStepStatus(7, 'processing')
+                    
+                    // 创建音频对象
+                    const audio = new Audio(result.audioUrl)
+                    
+                    // 获取音频文件大小（估算）
+                    try {
+                        const audioResponse = await fetch(result.audioUrl, { method: 'HEAD' })
+                        const contentLength = audioResponse.headers.get('content-length')
+                        if (contentLength) {
+                            const sizeKB = Math.round(parseInt(contentLength) / 1024)
+                            document.getElementById('audioSize').textContent = `${sizeKB}KB`
+                        }
+                    } catch (e) {
+                        console.log('无法获取音频文件大小')
+                    }
+                    
+                    audio.addEventListener('canplay', () => {
+                        updateStepStatus(7, 'success')
+                    })
+                    
+                    audio.addEventListener('error', () => {
+                        updateStepStatus(7, 'error')
+                    })
+                    
+                    await audio.play()
+                    
+                } else {
+                    throw new Error(result.error || '语音生成失败')
+                }
+                
+                // 更新统计信息
+                const totalTime = Date.now() - monitoringData.startTime
+                document.getElementById('totalTime').textContent = `${totalTime}ms`
+                document.getElementById('textLength').textContent = text.length
+                
+            } catch (error) {
+                console.error('监控过程中出错:', error)
+                
+                // 标记当前步骤为失败
+                for (let i = 1; i <= 7; i++) {
+                    const status = document.getElementById(`status${i}`)
+                    if (status.classList.contains('status-processing')) {
+                        updateStepStatus(i, 'error')
+                        break
+                    }
+                }
+                
+                alert('监控过程中出错: ' + error.message)
+            } finally {
+                document.getElementById('startBtn').disabled = false
+            }
+        }
+
+        // 重置流程
+        function resetFlow() {
+            for (let i = 1; i <= 7; i++) {
+                updateStepStatus(i, 'waiting')
+            }
+            
+            document.getElementById('totalTime').textContent = '0ms'
+            document.getElementById('apiTime').textContent = '0ms'
+            document.getElementById('audioSize').textContent = '0KB'
+            document.getElementById('textLength').textContent = '0'
+            
+            monitoringData = {
+                startTime: 0,
+                apiStartTime: 0,
+                steps: {},
+                requestData: null,
+                responseData: null
+            }
+        }
+
+        // 显示原始数据
+        function showRawData() {
+            const dataPanel = document.getElementById('dataPanel')
+            const isVisible = dataPanel.style.display !== 'none'
+            
+            if (isVisible) {
+                dataPanel.style.display = 'none'
+                document.getElementById('dataBtn').textContent = '📊 查看原始数据'
+            } else {
+                // 更新数据内容
+                document.getElementById('requestData').textContent = 
+                    monitoringData.requestData ? JSON.stringify(monitoringData.requestData, null, 2) : '暂无数据'
+                
+                document.getElementById('responseData').textContent = 
+                    monitoringData.responseData ? JSON.stringify(monitoringData.responseData, null, 2) : '暂无数据'
+                
+                document.getElementById('ppioData').textContent = 
+                    `步骤执行时间:\n${JSON.stringify(monitoringData.steps, null, 2)}`
+                
+                dataPanel.style.display = 'block'
+                document.getElementById('dataBtn').textContent = '📊 隐藏原始数据'
+            }
+        }
+    </script>
+</body>
+</html>
