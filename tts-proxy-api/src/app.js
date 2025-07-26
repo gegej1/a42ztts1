@@ -8,7 +8,7 @@ require('dotenv').config()
 const ttsRoutes = require('./routes/tts')
 
 const app = express()
-const PORT = process.env.PORT || 3000
+const PORT = process.env.PORT || 8080
 
 // 安全中间件
 app.use(helmet())
