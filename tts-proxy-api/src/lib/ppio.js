@@ -52,11 +52,9 @@ class PPIOClient {
       }
 
       const payload = {
-        audio_url: voiceId, // 使用Voice ID作为audio_url
-        text_validation: "", // 可能需要验证文本
+        voice_id: voiceId, // 使用Voice ID
         text: text,
         model: "speech-02-hd",
-        accuracy: 1.0, // 设置准确度 (0-1范围)
         need_noise_reduction: true,
         need_volume_normalization: true
       }
