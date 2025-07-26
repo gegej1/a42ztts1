@@ -299,6 +299,95 @@ router.get('/judge/:name', async (req, res) => {
 })
 
 /**
+ * 创建简化的语音生成函数
+ */
+async function generateSpeechSimple(text, speaker, res) {
+  try {
+    // 参数验证
+    if (!text || typeof text !== 'string') {
+      return res.status(400).json({
+        success: false,
+        error: '缺少必需参数: text',
+        speaker: speaker
+      })
+    }
+
+    // 文本预处理
+    const processedText = ppioClient.preprocessText(text)
+    
+    console.log(`🎯 ${speaker} 语音生成开始，文本长度: ${processedText.length}`)
+
+    // 直接调用PPIO API生成语音，无数据库查询
+    const result = await ppioClient.generateSpeech(processedText, speaker)
+
+    if (result.success) {
+      console.log(`✅ ${speaker} 语音生成成功`)
+      res.json({
+        success: true,
+        audioUrl: result.audioUrl,
+        textPreview: result.textPreview,
+        speaker: result.speaker,
+        voiceId: result.voiceId,
+        timestamp: result.timestamp
+      })
+    } else {
+      console.error(`❌ ${speaker} 语音生成失败:`, result.error)
+      res.status(500).json({
+        success: false,
+        error: result.error,
+        speaker: result.speaker,
+        timestamp: result.timestamp
+      })
+    }
+
+  } catch (error) {
+    console.error(`💥 ${speaker} API处理异常:`, error.message)
+    res.status(500).json({
+      success: false,
+      error: '服务器内部错误，请稍后重试',
+      speaker: speaker,
+      timestamp: new Date().toISOString()
+    })
+  }
+}
+
+/**
+ * POST /api/tts/sam-altman
+ * Sam Altman 专用语音生成端点
+ */
+router.post('/sam-altman', async (req, res) => {
+  const { text } = req.body
+  await generateSpeechSimple(text, 'sam_altman', res)
+})
+
+/**
+ * POST /api/tts/feifeili
+ * 李飞飞 专用语音生成端点
+ */
+router.post('/feifeili', async (req, res) => {
+  const { text } = req.body
+  await generateSpeechSimple(text, 'feifeili', res)
+})
+
+/**
+ * POST /api/tts/wuenda
+ * 吴恩达 专用语音生成端点
+ */
+router.post('/wuenda', async (req, res) => {
+  const { text } = req.body
+  await generateSpeechSimple(text, 'wuenda', res)
+})
+
+/**
+ * POST /api/tts/paul-graham
+ * Paul Graham 专用语音生成端点
+ */
+router.post('/paul-graham', async (req, res) => {
+  const { text } = req.body
+  await generateSpeechSimple(text, 'paul_graham', res)
+})
+
+/**
  * GET /api/tts/test
  * 测试端点 - 使用固定文本测试所有语音角色
  */
