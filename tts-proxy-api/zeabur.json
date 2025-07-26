@@ -1,0 +1,19 @@
+{
+  "name": "tts-proxy-api",
+  "type": "nodejs",
+  "buildCommand": "npm install",
+  "startCommand": "npm start",
+  "port": 3000,
+  "env": {
+    "NODE_ENV": "production"
+  },
+  "domains": [],
+  "healthCheck": {
+    "path": "/health",
+    "timeout": 30
+  },
+  "resources": {
+    "cpu": "0.5",
+    "memory": "512Mi"
+  }
+}

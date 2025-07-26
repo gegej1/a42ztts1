@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TTS语音播放系统 - 前端集成示例</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #555;
+        }
+        textarea, select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 16px;
+            box-sizing: border-box;
+        }
+        textarea {
+            height: 120px;
+            resize: vertical;
+        }
+        button {
+            background: #007AFF;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            margin-right: 10px;
+            transition: background 0.2s;
+        }
+        button:hover {
+            background: #0056CC;
+        }
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        .status {
+            margin-top: 20px;
+            padding: 12px;
+            border-radius: 8px;
+            font-weight: 500;
+        }
+        .status.loading {
+            background: #E3F2FD;
+            color: #1976D2;
+        }
+        .status.success {
+            background: #E8F5E8;
+            color: #2E7D32;
+        }
+        .status.error {
+            background: #FFEBEE;
+            color: #C62828;
+        }
+        .audio-player {
+            margin-top: 20px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border: 1px solid #e9ecef;
+        }
+        .speaker-info {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        .speaker-card {
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border: 1px solid #e9ecef;
+            text-align: center;
+        }
+        .speaker-card h3 {
+            margin: 0 0 8px 0;
+            color: #333;
+        }
+        .speaker-card p {
+            margin: 0;
+            color: #666;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎤 TTS语音播放系统</h1>
+        
+        <div class="speaker-info">
+            <div class="speaker-card">
+                <h3>Sam Altman</h3>
+                <p>英文语音 • OpenAI CEO</p>
+            </div>
+            <div class="speaker-card">
+                <h3>李飞飞</h3>
+                <p>中文语音 • 斯坦福教授</p>
+            </div>
+            <div class="speaker-card">
+                <h3>吴恩达</h3>
+                <p>中文语音 • AI专家</p>
+            </div>
+            <div class="speaker-card">
+                <h3>Paul Graham</h3>
+                <p>英文语音 • Y Combinator</p>
+            </div>
+        </div>
+
+        <form id="ttsForm">
+            <div class="form-group">
+                <label for="text">输入文本内容：</label>
+                <textarea id="text" placeholder="请输入要转换为语音的文本内容..." required>Hello, this is a test of the TTS voice cloning system. We have successfully cloned the voices of Sam Altman, Fei-Fei Li, Andrew Ng, and Paul Graham.</textarea>
+            </div>
+            
+            <div class="form-group">
+                <label for="speaker">选择语音角色：</label>
+                <select id="speaker" required>
+                    <option value="sam_altman">Sam Altman (英文)</option>
+                    <option value="feifeili">李飞飞 (中文)</option>
+                    <option value="wuenda">吴恩达 (中文)</option>
+                    <option value="paul_graham">Paul Graham (英文)</option>
+                </select>
+            </div>
+            
+            <button type="submit" id="generateBtn">🎵 生成语音</button>
+            <button type="button" id="stopBtn" disabled>⏹️ 停止播放</button>
+        </form>
+        
+        <div id="status" class="status" style="display: none;"></div>
+        <div id="audioPlayer" class="audio-player" style="display: none;"></div>
+    </div>
+
+    <script>
+        // TTS服务类
+        class TTSService {
+            constructor(apiUrl = 'https://your-tts-proxy.zeabur.app') {
+                this.apiUrl = `${apiUrl}/api/tts`
+                this.currentAudio = null
+            }
+
+            async generateSpeech(options) {
+                const response = await fetch(this.apiUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(options)
+                })
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`)
+                }
+                
+                return await response.json()
+            }
+
+            async playText(text, speaker) {
+                try {
+                    const result = await this.generateSpeech({ text, speaker })
+                    if (result.success && result.audioUrl) {
+                        this.currentAudio = new Audio(result.audioUrl)
+                        
+                        // 添加音频事件监听
+                        this.currentAudio.addEventListener('loadstart', () => {
+                            this.showStatus('正在加载音频...', 'loading')
+                        })
+                        
+                        this.currentAudio.addEventListener('canplay', () => {
+                            this.showStatus('音频加载完成，开始播放', 'success')
+                        })
+                        
+                        this.currentAudio.addEventListener('ended', () => {
+                            this.showStatus('播放完成', 'success')
+                            document.getElementById('stopBtn').disabled = true
+                            document.getElementById('generateBtn').disabled = false
+                        })
+                        
+                        this.currentAudio.addEventListener('error', (e) => {
+                            this.showStatus('音频播放失败: ' + e.message, 'error')
+                        })
+                        
+                        await this.currentAudio.play()
+                        return { audio: this.currentAudio, result }
+                    } else {
+                        throw new Error(result.error || '语音生成失败')
+                    }
+                } catch (error) {
+                    console.error('TTS播放失败:', error)
+                    throw error
+                }
+            }
+
+            stopAudio() {
+                if (this.currentAudio) {
+                    this.currentAudio.pause()
+                    this.currentAudio.currentTime = 0
+                    this.currentAudio = null
+                }
+            }
+
+            showStatus(message, type) {
+                const statusEl = document.getElementById('status')
+                statusEl.textContent = message
+                statusEl.className = `status ${type}`
+                statusEl.style.display = 'block'
+            }
+        }
+
+        // 初始化TTS服务
+        const tts = new TTSService()
+
+        // 表单提交处理
+        document.getElementById('ttsForm').addEventListener('submit', async (e) => {
+            e.preventDefault()
+            
+            const text = document.getElementById('text').value.trim()
+            const speaker = document.getElementById('speaker').value
+            const generateBtn = document.getElementById('generateBtn')
+            const stopBtn = document.getElementById('stopBtn')
+            
+            if (!text) {
+                tts.showStatus('请输入文本内容', 'error')
+                return
+            }
+            
+            generateBtn.disabled = true
+            stopBtn.disabled = false
+            tts.showStatus('正在生成语音，请稍候...', 'loading')
+            
+            try {
+                const { audio, result } = await tts.playText(text, speaker)
+                
+                // 显示音频播放器信息
+                const audioPlayer = document.getElementById('audioPlayer')
+                audioPlayer.innerHTML = `
+                    <h3>🎵 正在播放</h3>
+                    <p><strong>语音角色:</strong> ${result.speaker}</p>
+                    <p><strong>文本预览:</strong> ${result.textPreview}</p>
+                    <p><strong>Voice ID:</strong> ${result.voiceId}</p>
+                    <audio controls style="width: 100%; margin-top: 10px;">
+                        <source src="${result.audioUrl}" type="audio/mpeg">
+                        您的浏览器不支持音频播放。
+                    </audio>
+                `
+                audioPlayer.style.display = 'block'
+                
+            } catch (error) {
+                tts.showStatus('语音生成失败: ' + error.message, 'error')
+                generateBtn.disabled = false
+                stopBtn.disabled = true
+            }
+        })
+
+        // 停止播放按钮
+        document.getElementById('stopBtn').addEventListener('click', () => {
+            tts.stopAudio()
+            document.getElementById('generateBtn').disabled = false
+            document.getElementById('stopBtn').disabled = true
+            tts.showStatus('播放已停止', 'success')
+        })
+
+        // 页面加载时显示API状态
+        window.addEventListener('load', async () => {
+            try {
+                const response = await fetch('https://your-tts-proxy.zeabur.app/health')
+                if (response.ok) {
+                    const data = await response.json()
+                    tts.showStatus(`✅ TTS服务正常 (版本: ${data.version})`, 'success')
+                } else {
+                    tts.showStatus('⚠️ TTS服务连接异常', 'error')
+                }
+            } catch (error) {
+                tts.showStatus('❌ 无法连接到TTS服务，请检查网络或联系管理员', 'error')
+            }
+        })
+    </script>
+</body>
+</html>
